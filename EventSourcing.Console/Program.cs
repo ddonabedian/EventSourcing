@@ -4,6 +4,9 @@ using EventSourcing.Console;
 Console.WriteLine("Hello");
 var repo = new WarehouseProductRepository();
 
+var projection = new Projection(new ProductDbContext());
+repo.Subscribe(projection.ReceiveEvent);
+
 var key = String.Empty;
 
 while (key.ToUpper() != "X")
@@ -13,13 +16,14 @@ while (key.ToUpper() != "X")
     Console.WriteLine("A: Adjust Inventory");
     Console.WriteLine("Q: Quantity on Hand");
     Console.WriteLine("E: Events");
+    Console.WriteLine("P: Projection");
     Console.Write("> ");
     key = Console.ReadKey().KeyChar.ToString().ToUpperInvariant();
     Console.WriteLine();
 
     var sku = GetSkuFromConsole();
     var warehouseProduct = repo.Get(sku);
-
+    
     switch (key.ToUpper())
     {
         case "R":
@@ -28,6 +32,7 @@ while (key.ToUpper() != "X")
             {
                 warehouseProduct.ReceiveProduct(receiveInput.Quantity);
                 Console.WriteLine($"{sku} Received: {receiveInput.Quantity}");
+                repo.Save(warehouseProduct);
             }
             break;
         case "S":
@@ -36,6 +41,7 @@ while (key.ToUpper() != "X")
             {
                 warehouseProduct.ShipProduct(shipInput.Quantity);
                 Console.WriteLine($"{sku} Shipped: {shipInput.Quantity}");
+                repo.Save(warehouseProduct);
             }
             break;
         case "A":
@@ -45,6 +51,7 @@ while (key.ToUpper() != "X")
                 var reason = GetAdjustmentReason();
                 warehouseProduct.AdjustInventory(adjustmentInput.Quantity, reason);
                 Console.WriteLine($"{sku} Adjusted: {adjustmentInput.Quantity} {reason}");
+                repo.Save(warehouseProduct);
             }
             break;
         case "Q":
@@ -71,11 +78,16 @@ while (key.ToUpper() != "X")
                 }
             }
             break;
+        case "P":
+            Console.WriteLine($"Projection: {sku}");
+            var productProjection = projection.GetProduct(sku);
+            Console.WriteLine($"{sku} Received: {productProjection.Received}");
+            Console.WriteLine($"{sku} Shipped: {productProjection.Shipped}");
+            break;
         default:
             break;
     }
 
-    repo.Save(warehouseProduct);
     Console.WriteLine();
 }
 
