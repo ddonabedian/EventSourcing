@@ -3,6 +3,7 @@ using EventSourcing.Console;
 
 Console.WriteLine("Hello");
 var repo = new WarehouseProductRepository();
+var evtStore = await WarehouseProductEventStoreStream.Factory();
 
 var projection = new Projection(new ProductDbContext());
 repo.Subscribe(projection.ReceiveEvent);
@@ -15,15 +16,16 @@ while (key.ToUpper() != "X")
     Console.WriteLine("S: Ship Inventory");
     Console.WriteLine("A: Adjust Inventory");
     Console.WriteLine("Q: Quantity on Hand");
-    Console.WriteLine("E: Events");
+    Console.WriteLine("E: Events since Snapshot");
     Console.WriteLine("P: Projection");
     Console.Write("> ");
     key = Console.ReadKey().KeyChar.ToString().ToUpperInvariant();
     Console.WriteLine();
 
     var sku = GetSkuFromConsole();
-    var warehouseProduct = repo.Get(sku);
-    
+    //var warehouseProduct = repo.Get(sku);
+    var warehouseProduct = await evtStore.Get(sku);
+
     switch (key.ToUpper())
     {
         case "R":
@@ -32,7 +34,8 @@ while (key.ToUpper() != "X")
             {
                 warehouseProduct.ReceiveProduct(receiveInput.Quantity);
                 Console.WriteLine($"{sku} Received: {receiveInput.Quantity}");
-                repo.Save(warehouseProduct);
+                await evtStore.Save(warehouseProduct);
+                //repo.Save(warehouseProduct);
             }
             break;
         case "S":
@@ -41,7 +44,8 @@ while (key.ToUpper() != "X")
             {
                 warehouseProduct.ShipProduct(shipInput.Quantity);
                 Console.WriteLine($"{sku} Shipped: {shipInput.Quantity}");
-                repo.Save(warehouseProduct);
+                await evtStore.Save(warehouseProduct);
+                //repo.Save(warehouseProduct);
             }
             break;
         case "A":
@@ -51,7 +55,8 @@ while (key.ToUpper() != "X")
                 var reason = GetAdjustmentReason();
                 warehouseProduct.AdjustInventory(adjustmentInput.Quantity, reason);
                 Console.WriteLine($"{sku} Adjusted: {adjustmentInput.Quantity} {reason}");
-                repo.Save(warehouseProduct);
+                await evtStore.Save(warehouseProduct);
+                //repo.Save(warehouseProduct);
             }
             break;
         case "Q":

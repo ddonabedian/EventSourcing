@@ -8,7 +8,7 @@ namespace EventSourcing.Console
 
 		public WarehouseProduct Get(string sku)
 		{
-			var warehouseProduct = new WarehouseProduct(sku);
+			var warehouseProduct = new WarehouseProduct(sku, new WarehouseProductState());
 
 			if (_inMemoryStreams.ContainsKey(sku))
 			{

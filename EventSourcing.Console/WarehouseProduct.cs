@@ -3,19 +3,26 @@
     public class WarehouseProduct
     {
         public string Sku { get; set; }
-        private IList<IEvent> _events = new List<IEvent>();
+        private IList<IEvent> _allEvents = new List<IEvent>();
+        private IList<IEvent> _uncommittedEvents = new List<IEvent>();
 
         // Projection (Current State)
-        private readonly CurrentState _currentState = new();
+        private readonly WarehouseProductState _warehouseProductState;
 
-        public WarehouseProduct(string sku)
+        public WarehouseProduct(string sku, WarehouseProductState state)
         {
             this.Sku = sku;
+            this._warehouseProductState = GetState();
+        }
+
+        public WarehouseProductState GetState()
+        {
+            return new WarehouseProductState();
         }
 
         public void ShipProduct(int quantity)
         {
-            if(quantity > _currentState.QuantityOnHand)
+            if(quantity > _warehouseProductState.QuantityOnHand)
             {
                 throw new InvalidDomainException("Not enough product to ship!");
             }
@@ -30,7 +37,7 @@
 
         public void AdjustInventory(int quantity, string reason)
         {
-            if(_currentState.QuantityOnHand + quantity < 0)
+            if(_warehouseProductState.QuantityOnHand + quantity < 0)
             {
                 throw new InvalidDomainException("Cannot adjust to a negative quantity");
             }
@@ -54,32 +61,59 @@
                     throw new InvalidOperationException("Event not supported");
             }
 
-            _events.Add(evnt);
+            _uncommittedEvents.Add(evnt);
         }
 
         private void Apply(ProductReceived evnt)
         {
-            _currentState.QuantityOnHand += evnt.Quantity;
+            _warehouseProductState.QuantityOnHand += evnt.Quantity;
+        }
+
+        internal void ApplyEvent(IEvent eventObj)
+        {
+            switch (eventObj.GetType().Name)
+            {
+                case "ProductReceived":
+                    Apply((ProductReceived)eventObj);
+                    break;
+                case "ProductShipped":
+                    Apply((ProductShipped)eventObj);
+                    break;
+                case "InventoryAdjusted":
+                    Apply((InventoryAdjusted)eventObj);
+                    break;
+                default:
+                    throw new InvalidOperationException("Unknown event type");
+            }
+
+            this._allEvents.Add(eventObj);
         }
 
         private void Apply(ProductShipped evnt)
         {
-            _currentState.QuantityOnHand -= evnt.Quantity;
+            _warehouseProductState.QuantityOnHand -= evnt.Quantity;
         }
 
         private void Apply(InventoryAdjusted evnt)
         {
-            _currentState.QuantityOnHand = evnt.Quantity;
+            _warehouseProductState.QuantityOnHand = evnt.Quantity;
+        }
+
+        internal IList<IEvent> GetUncommittedEvents()
+        {
+            return _uncommittedEvents;
         }
 
         public IList<IEvent> GetEvents()
         {
-            return this._events;
+            return this._allEvents;
         }
 
         public int GetQuantityOnHand()
         {
-            return this._currentState.QuantityOnHand;
+            return this._warehouseProductState.QuantityOnHand;
         }
+
+        
     }
 }
